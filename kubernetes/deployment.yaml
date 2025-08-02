@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: facmcp-deploy
+  labels:
+    app: facmcp-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: facmcp-deploy
+  template:
+    metadata:
+      labels:
+        app: facmcp-deploy
+    spec:
+      containers:
+      - name: facmcp-deploy
+        image: europe-west1-docker.pkg.dev/$PROJECT_ID/facmcp-repo/facmcp-deploy:$COMMIT_SHA
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"

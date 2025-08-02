@@ -1,0 +1,55 @@
+steps:
+# Step 1: (Conditional) Create GKE Cluster using Terraform
+# This step will only run if the substitution variable _CREATE_GKE_CLUSTER is set to "true"
+- name: 'hashicorp/terraform:latest'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      if [ "${_CREATE_GKE_CLUSTER}" = "true" ]; then
+        echo "Creating GKE cluster with Terraform..."
+        cd terraform
+        terraform init
+        terraform apply -auto-approve -var="gcp_project_id=$PROJECT_ID" -var="gcp_region=europe-west1"
+        echo "GKE cluster creation complete."
+      else
+        echo "Skipping GKE cluster creation."
+      fi
+  id: CreateGKECluster
+
+# Step 2: Build Docker Image
+- name: 'gcr.io/cloud-builders/docker'
+  args: [
+    'build',
+    '-t', 'europe-west1-docker.pkg.dev/$PROJECT_ID/facmcp-repo/facmcp-deploy:$COMMIT_SHA',
+    '.'
+  ]
+  id: Build
+  waitFor: ['CreateGKECluster'] # Wait for the cluster creation step to complete (or be skipped)
+
+# Step 3: Push Docker Image
+- name: 'gcr.io/cloud-builders/docker'
+  args: [
+    'push',
+    'europe-west1-docker.pkg.dev/$PROJECT_ID/facmcp-repo/facmcp-deploy:$COMMIT_SHA'
+  ]
+  id: Push
+  waitFor: ['Build']
+
+# Step 4: Deploy to GKE
+- name: 'gcr.io/cloud-builders/kubectl'
+  args: [
+    'apply',
+    '-f', 'kubernetes/'
+  ]
+  env:
+  - 'CLOUDSDK_COMPUTE_ZONE=europe-west1' # Consistent with Terraform region
+  - 'CLOUDSDK_CONTAINER_CLUSTER=facmcp-gke-cluster' # Name of the cluster created by Terraform
+  id: Deploy
+  waitFor: ['Push'] # Deploy after image is pushed
+
+images:
+- 'europe-west1-docker.pkg.dev/$PROJECT_ID/facmcp-repo/facmcp-deploy:$COMMIT_SHA'
+
+substitutions:
+  _CREATE_GKE_CLUSTER: "false" # Default to false. Set to "true" in trigger if needed.
