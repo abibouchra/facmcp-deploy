@@ -10,7 +10,7 @@ steps:
         echo "Creating GKE cluster with Terraform..."
         cd terraform
         terraform init
-        terraform apply -auto-approve -var="gcp_project_id=$PROJECT_ID" -var="gcp_region=europe-west1"
+        terraform apply -auto-approve -var="gcp_project_id=pgcp-bouchra" -var="gcp_region=europe-west1"
         echo "GKE cluster creation complete."
       else
         echo "Skipping GKE cluster creation."
